@@ -1,1 +1,1 @@
-export const v2_base_url = "hianime.to";
+export const v2_base_url = "kaido.to";
