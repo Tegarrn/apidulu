@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { createApiRoutes } from "./src/routes/apiRoutes.js";
+import { createApiRoutes } from "../src/routes/apiRoutes.js";
 
 dotenv.config();
 
