@@ -5,36 +5,43 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { createApiRoutes } from "../src/routes/apiRoutes.js";
+import { createApiRoutes } from "./src/routes/apiRoutes.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4444;
 const __filename = fileURLToPath(import.meta.url);
-const publicDir = path.join(dirname(dirname(__filename)), "public");
+const publicDir = path.join(dirname(__filename), "public");
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",");
 
-// Ambil daftar origin dari .env
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : [];
+// Express CORS setup
+app.use(
+  cors({
+    origin: allowedOrigins?.includes("*") ? "*" : allowedOrigins || [],
+    methods: ["GET"],
+  })
+);
 
-// Middleware CORS dengan handling OPTIONS
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Forbidden: Origin not allowed"));
-    }
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+// Custom CORS middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (
+    !allowedOrigins ||
+    allowedOrigins.includes("*") ||
+    (origin && allowedOrigins.includes(origin))
+  ) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    return next();
+  }
+  res
+    .status(403)
+    .json({ success: false, message: "Forbidden: Origin not allowed" });
+});
 
-app.options("*", cors()); // Allow preflight OPTIONS request
-
-app.use(express.static(publicDir));
+app.use(express.static(publicDir, { redirect: false }));
 
 const jsonResponse = (res, data, status = 200) =>
   res.status(status).json({ success: true, results: data });
@@ -44,7 +51,6 @@ const jsonError = (res, message = "Internal server error", status = 500) =>
 
 createApiRoutes(app, jsonResponse, jsonError);
 
-// Route untuk menangani halaman 404
 app.get("*", (req, res) => {
   const filePath = path.join(publicDir, "404.html");
   if (fs.existsSync(filePath)) {
